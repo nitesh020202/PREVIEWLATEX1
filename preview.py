@@ -28,107 +28,6 @@ _LADDER_EMPTY_DIV  = re.compile(r'^\s*\|')
 _LADDER_FINAL_RE   = re.compile(r'^\s+\d[\d\s]+$')
 _LADDER_ROW_PARSE  = re.compile(r'^(\s*\d*)\s*\|\s*(.+)$')
 
-# ── <img> tag highlighter for JSON editor panel ───────────────────
-import html as _html_mod
-
-def _json_editor_html(text: str, img_count: int = 0) -> str:
-    """Single panel: titlebar + img badge + search + ONE textarea (edit/paste)."""
-    badge   = f'<span class="badge">img \xd7{img_count}</span>' if img_count else ''
-    raw_esc = _html_mod.escape(text)
-
-    return f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8">
-<style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-html,body{{height:100%;overflow:hidden}}
-body{{background:#1e1e1e;color:#d4d4d4;font:13px/1.55 Consolas,Monaco,monospace;
-     display:flex;flex-direction:column;border:1px solid #3c3c3c;border-radius:6px}}
-#titlebar{{display:flex;align-items:center;gap:6px;background:#252526;
-           border-bottom:1px solid #3c3c3c;padding:5px 10px;flex-shrink:0;
-           border-radius:6px 6px 0 0}}
-.dot{{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}}
-#titlebar b{{color:#9cdcfe;margin-left:4px}}
-.badge{{background:#1a4a1a;color:#32CD32;font-size:11px;
-        border-radius:10px;padding:1px 7px;margin-left:4px}}
-#searchbar{{display:flex;align-items:center;gap:6px;background:#2d2d2d;
-            border-bottom:1px solid #3c3c3c;padding:4px 10px;flex-shrink:0}}
-#srch{{flex:1;background:#3c3c3c;color:#d4d4d4;border:1px solid #555;
-       border-radius:4px;padding:3px 8px;font:13px Consolas,monospace;outline:none}}
-#srch:focus{{border-color:#007acc}}
-#match-info{{color:#888;font-size:11px;white-space:nowrap;min-width:64px}}
-#imgcount{{color:#32CD32;font-size:11px;white-space:nowrap;margin-left:4px}}
-#rawEdit{{flex:1;width:100%;background:#1e1e1e;color:#d4d4d4;
-          border:none;outline:none;resize:none;
-          font:13px/1.5 Consolas,Monaco,monospace;
-          padding:8px 12px;border-radius:0 0 6px 6px;
-          overflow-x:scroll;overflow-y:scroll;white-space:pre}}
-#rawEdit::placeholder{{color:#555}}
-::-webkit-scrollbar{{width:10px;height:10px}}
-::-webkit-scrollbar-track{{background:#2d2d2d}}
-::-webkit-scrollbar-thumb{{background:#555;border-radius:4px}}
-::-webkit-scrollbar-thumb:hover{{background:#888}}
-</style>
-</head>
-<body>
-<div id="titlebar">
-  <span class="dot" style="background:#ff5f57"></span>
-  <span class="dot" style="background:#febc2e"></span>
-  <span class="dot" style="background:#28c840"></span>
-  <b>data.json</b>{badge}
-  <span id="imgcount"></span>
-</div>
-<div id="searchbar">
-  <input id="srch" type="text" placeholder="🔍 Search... (type to find)" oninput="doSearch(this.value)">
-  <span id="match-info"></span>
-</div>
-<textarea id="rawEdit" placeholder="📋 JSON yahan paste karo ya edit karo...">{raw_esc}</textarea>
-<script>
-/* ── Search in textarea ── */
-function escRe(s){{return s.replace(/[.*+?^${{}}()|[\\]\\\\]/g,'\\\\$&');}}
-function doSearch(term){{
-  var ed=document.getElementById('rawEdit');
-  var info=document.getElementById('match-info');
-  if(!term.trim()){{info.textContent='';return;}}
-  var text=ed.value,tl=term.toLowerCase(),cnt=0,idx=0,first=-1;
-  var t2=text.toLowerCase();
-  while((idx=t2.indexOf(tl,idx))!==-1){{cnt++;if(first===-1)first=idx;idx+=tl.length;}}
-  info.textContent=cnt?cnt+' match'+(cnt>1?'es':''):'No match';
-  if(first!==-1){{ed.focus();ed.setSelectionRange(first,first+term.length);}}
-}}
-/* ── Live img count update ── */
-function updateImgCount(){{
-  var val=document.getElementById('rawEdit').value;
-  var m=val.match(/<img\b/gi);
-  var el=document.getElementById('imgcount');
-  el.textContent=m?'img \xd7'+m.length:'';
-}}
-/* ── Sync → parent Streamlit textarea ── */
-function syncUp(val){{
-  try{{
-    var par=window.parent;
-    var ta=par.document.querySelector('textarea[aria-label="JSON Input"]');
-    if(!ta)return;
-    var s=Object.getOwnPropertyDescriptor(par.HTMLTextAreaElement.prototype,'value').set;
-    s.call(ta,val);
-    ta.dispatchEvent(new par.Event('input',{{bubbles:true}}));
-    ta.dispatchEvent(new par.Event('change',{{bubbles:true}}));
-    ta.dispatchEvent(new par.Event('blur',{{bubbles:true}}));
-  }}catch(e){{console.log('syncUp error:',e);}}
-}}
-var timer=null;
-var ed=document.getElementById('rawEdit');
-ed.addEventListener('input',function(){{
-  updateImgCount();
-  clearTimeout(timer);
-  timer=setTimeout(function(){{syncUp(ed.value);}},800);
-}});
-ed.addEventListener('blur',function(){{clearTimeout(timer);syncUp(ed.value);}});
-updateImgCount();
-</script>
-</body>
-</html>"""
-
 
 def _lcm_ladder_to_html(ladder_lines: list) -> str:
     rows, final_nums = [], None
@@ -494,7 +393,6 @@ if "pdf_name" not in st.session_state:
 # Apply any pending value BEFORE widget renders (Streamlit rule)
 if "_json_next" in st.session_state:
     st.session_state["json_input"] = st.session_state.pop("_json_next")
-    st.session_state["prev_page"] = 0   # reset pagination on new JSON
 
 # ══════════════════════════════════════════════════════════════════
 # PANEL RESIZE CONTROLS
@@ -560,83 +458,18 @@ _raw_pre = (st.session_state.get("json_input") or "").lstrip("﻿").strip()
 if _raw_pre:
     try:
         _p = json.loads(_raw_pre)
-        if isinstance(_p, dict):
-            questions = [_p]
-        elif isinstance(_p, list):
-            # flatten nested arrays (e.g. merged [[...], [...]])
-            questions = []
-            for item in _p:
-                if isinstance(item, list):
-                    questions.extend(item)
-                elif isinstance(item, dict):
-                    questions.append(item)
-    except json.JSONDecodeError:
-        # Try parsing multiple concatenated JSON arrays
-        try:
-            decoder = json.JSONDecoder()
-            _text = _raw_pre
-            _idx = 0
-            _parts = []
-            while _idx < len(_text):
-                _obj, _end = decoder.raw_decode(_text, _idx)
-                if isinstance(_obj, list):
-                    _parts.extend(_obj)
-                elif isinstance(_obj, dict):
-                    _parts.append(_obj)
-                _idx = _end
-                while _idx < len(_text) and _text[_idx] in ' \t\n\r':
-                    _idx += 1
-            questions = _parts
-        except Exception:
-            pass
+        questions = [_p] if isinstance(_p, dict) else (_p if isinstance(_p, list) else [])
     except Exception:
         pass
 
-# ── Pagination state ──────────────────────────────────────────────
-_PAGE_SIZE = 20
-if "prev_page" not in st.session_state:
-    st.session_state["prev_page"] = 0
-
-_total_q = len(questions)
-_total_pages = max(1, (_total_q + _PAGE_SIZE - 1) // _PAGE_SIZE)
-# Reset page if out of range (e.g. new JSON loaded)
-if st.session_state["prev_page"] >= _total_pages:
-    st.session_state["prev_page"] = 0
-
-_cur_page = st.session_state["prev_page"]
-_q_slice = questions[_cur_page * _PAGE_SIZE: (_cur_page + 1) * _PAGE_SIZE]
-
 with col_prev:
     st.subheader("👁️ Preview")
-
-    # ── Pagination controls ───────────────────────────────────────
-    if _total_q > 0:
-        _p1, _p2, _p3 = st.columns([1, 3, 1])
-        with _p1:
-            if st.button("◀ Prev", disabled=(_cur_page == 0), use_container_width=True, key="prev_btn"):
-                st.session_state["prev_page"] -= 1
-                st.rerun()
-        with _p2:
-            _start_q = _cur_page * _PAGE_SIZE + 1
-            _end_q = min((_cur_page + 1) * _PAGE_SIZE, _total_q)
-            st.markdown(
-                f"<div style='text-align:center;font-size:12px;color:#6b7280;padding:4px 0'>"
-                f"Q {_start_q}–{_end_q} / {_total_q} &nbsp;|&nbsp; Page {_cur_page+1}/{_total_pages}"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-        with _p3:
-            if st.button("Next ▶", disabled=(_cur_page >= _total_pages - 1), use_container_width=True, key="next_btn"):
-                st.session_state["prev_page"] += 1
-                st.rerun()
-
-    preview_html = _build_preview_html(_q_slice)
+    preview_html = _build_preview_html(questions)
     components.html(preview_html, height=650, scrolling=True)
     if questions:
-        full_html = _build_preview_html(questions)
         st.download_button(
-            label="⬇️ HTML download (all)",
-            data=full_html,
+            label="⬇️ HTML download",
+            data=preview_html,
             file_name="preview.html",
             mime="text/html",
             use_container_width=True,
@@ -678,16 +511,8 @@ with col_json:
                 "style": {"bottom": "0.5rem", "right": "7rem"},
             },
         ]
-        # line-level green markers for every line that contains an <img tag
-        _ce_val = st.session_state.get("json_input", "")
-        _img_markers = [
-            {"startRow": _r, "startCol": 0, "endRow": _r, "endCol": len(_l),
-             "className": "img-tag-hl", "type": "line"}
-            for _r, _l in enumerate(_ce_val.split('\n'))
-            if re.search(r'<img\b', _l, re.I)
-        ]
         resp = code_editor(
-            _ce_val,
+            st.session_state.get("json_input", ""),
             lang="json",
             theme="vs-dark",
             height=[20, 32],          # max 32 lines → scrollbar appears after that
@@ -699,65 +524,32 @@ with col_json:
                 "hScrollBarAlwaysVisible": True,
                 "vScrollBarAlwaysVisible": True,
             },
-            props={"style": {"overflow": "auto"}, "markers": _img_markers},
+            props={"style": {"overflow": "auto"}},
             buttons=_BTNS,
             key="code_editor_json",
-            response_mode=["blur", "submit"],
-            css=".img-tag-hl{background:rgba(50,205,50,.18)!important;"
-                "border-left:3px solid #32CD32!important}",
         )
-        # update session state on any change (enables instant preview refresh)
-        _resp_text = resp.get("text")
-        if _resp_text and _resp_text != st.session_state.get("json_input", ""):
-            st.session_state["_json_next"] = _resp_text
+        # code_editor returns new text when user submits (Ctrl+Enter or button)
+        if resp.get("type") == "submit" and resp.get("text"):
+            st.session_state["_json_next"] = resp["text"]
             st.rerun()
         json_text = resp.get("text") or st.session_state.get("json_input", "")
 
     else:
-        # ── Title bar (dark, VS Code style) ──────────────────────────
-        _ta_val = st.session_state.get("json_input", "") or ""
-        _img_count = sum(1 for _l in _ta_val.split('\n') if re.search(r'<img\b', _l, re.I))
-        _badge = (f'<span style="background:#1a4a1a;color:#32CD32;font-size:11px;'
-                  f'border-radius:10px;padding:1px 8px;margin-left:6px">img ×{_img_count}</span>'
-                  if _img_count else '')
+        # ── Tag wrapper header ────────────────────────────────────
         st.markdown(
-            f'<div style="background:#252526;border:1px solid #3c3c3c;'
-            f'border-radius:6px 6px 0 0;padding:5px 12px;'
-            f'font-family:Consolas,monospace;font-size:13px;'
-            f'display:flex;align-items:center;gap:6px;margin-bottom:0">'
-            f'<span style="width:10px;height:10px;border-radius:50%;background:#ff5f57;display:inline-block"></span>'
-            f'<span style="width:10px;height:10px;border-radius:50%;background:#febc2e;display:inline-block"></span>'
-            f'<span style="width:10px;height:10px;border-radius:50%;background:#28c840;display:inline-block"></span>'
-            f'<b style="color:#9cdcfe;margin-left:4px">data.json</b>{_badge}</div>',
-            unsafe_allow_html=True,
-        )
-        # ── Search bar ───────────────────────────────────────────────
-        st.markdown(
-            '<style>'
-            'div[data-testid="stTextInput"]:has(input[aria-label="srch_json"])>div>div>input{'
-            'background:#2d2d2d!important;color:#d4d4d4!important;'
-            'border:1px solid #3c3c3c!important;border-radius:0!important;'
-            'font:13px Consolas,monospace!important;padding:3px 10px!important}'
-            '</style>',
-            unsafe_allow_html=True,
-        )
-        _srch = st.text_input("srch_json", placeholder="🔍 Search in JSON...",
-                              label_visibility="collapsed", key="_json_srch")
-        if _srch and _ta_val:
-            _cnt = _ta_val.lower().count(_srch.lower())
-            _info = f"✅ {_cnt} match{'es' if _cnt!=1 else ''}" if _cnt else "❌ No match"
-            st.caption(_info)
-
-        # ── ONE textarea — direct Streamlit state → preview guaranteed ─
-        st.markdown(
-            '<style>div[data-testid="stTextArea"]:has(textarea[aria-label="JSON Input"])>div>textarea'
-            '{border-radius:0 0 6px 6px!important;border-top:none!important;margin-top:-4px!important}</style>',
+            "<div class='json-editor-wrap'>"
+            "<div class='json-editor-tag'>"
+            "<span class='dot' style='background:#ff5f57'></span>"
+            "<span class='dot' style='background:#febc2e'></span>"
+            "<span class='dot' style='background:#28c840'></span>"
+            "&nbsp;&nbsp;{ }&nbsp;<b>data.json</b>"
+            "</div></div>",
             unsafe_allow_html=True,
         )
         json_text = st.text_area(
             "JSON Input",
-            height=440,
-            placeholder='📋 Yahan JSON paste karo ya edit karo...',
+            height=520,
+            placeholder='[\n  {\n    "questionid": "1",\n    "question": "...",\n    "Answer": "1"\n  }\n]',
             key="json_input",
             label_visibility="collapsed",
         )
@@ -774,30 +566,17 @@ with col_json:
     if raw:
         try:
             p = json.loads(raw)
-            if isinstance(p, dict):
-                questions_live = [p]
-            elif isinstance(p, list):
-                for _item in p:
-                    if isinstance(_item, list):
-                        questions_live.extend(_item)
-                    elif isinstance(_item, dict):
-                        questions_live.append(_item)
-        except json.JSONDecodeError:
-            # Try multiple concatenated JSON arrays
-            try:
-                _dec = json.JSONDecoder()
-                _ti, _idx2 = raw, 0
-                while _idx2 < len(_ti):
-                    _obj2, _end2 = _dec.raw_decode(_ti, _idx2)
-                    if isinstance(_obj2, list):
-                        questions_live.extend(_obj2)
-                    elif isinstance(_obj2, dict):
-                        questions_live.append(_obj2)
-                    _idx2 = _end2
-                    while _idx2 < len(_ti) and _ti[_idx2] in ' \t\n\r':
-                        _idx2 += 1
-            except Exception as e2:
-                err = f"Parse error: {e2}"
+            questions_live = [p] if isinstance(p, dict) else (p if isinstance(p, list) else [])
+            if questions_live:
+                pretty = json.dumps(
+                    questions_live if len(questions_live) > 1 else questions_live[0],
+                    ensure_ascii=False, indent=2
+                )
+                if not HAS_CODE_EDITOR and pretty != raw:
+                    st.session_state["_json_next"] = pretty
+                    st.rerun()
+        except json.JSONDecodeError as e:
+            err = f"Parse error: {e}"
 
     with c_status:
         if err:
